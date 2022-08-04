@@ -36,3 +36,19 @@
     transform: rotate(360deg);
   }
 }
+
+.search {
+  position: absolute;
+  /* top: 1rem; */
+  left: 90%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 400px;
+  z-index: 10;
+}
+
+.search input {
+  padding: 0.1rem;
+  font-size: 1rem;
+  width: 100%;
+}
