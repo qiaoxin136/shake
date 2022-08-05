@@ -1,6 +1,6 @@
 import "./App.css";
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { GeoJsonLayer } from "deck.gl";
+import { GeoJsonLayer, MVTLayer } from "deck.gl";
 import { Wrapper, Status } from "@googlemaps/react-wrapper";
 import { GoogleMapsOverlay as DeckOverlay } from "@deck.gl/google-maps";
 
@@ -19,13 +19,22 @@ import {
 import "@reach/combobox/styles.css";
 
 import { mapStyles } from "./components/mapStyles";
-import { Gravity } from "./components/Gravity";
-import { FM } from "./components/ForceMain";
-// import { Arrow } from "./components/arrow";
-import { LiftStation } from "./components/liftStation";
-import { MH } from "./components/MH";
-import { Address } from "./components/Address";
-// import { Flowmeter } from "./components/flowmeter";
+import { Node } from "./components/node";
+import { Channel } from "./components/channel";
+import { Conduit } from "./components/conduit";
+import { Culvert } from "./components/culvert";
+import { Basin } from "./components/subbasin";
+
+import Amplify from "aws-amplify";
+import awsconfig from "./aws-exports";
+import {
+  AmplifyAuthenticator,
+  AmplifySignUp,
+  AmplifySignIn,
+  AmplifySignOut,
+} from "@aws-amplify/ui-react";
+
+Amplify.configure(awsconfig);
 
 const GOOGLE_MAPS_API_KEY = "AIzaSyBsntctk2YsoHxr_PeyfjeNhzbQZ_d4gsw";
 
@@ -72,21 +81,67 @@ function MyMapComponent({ center, zoom, tilt }) {
 
   let layers = [];
 
+  let layer2 = new GeoJsonLayer({
+    id: "basin",
+    data: Basin,
+    pickable: true,
+    stroked: true,
+    filled: false,
+    // extruded: true,
+    // pointType: "circle",
+    lineWidthScale: 2,
+    lineWidthMinPixels: 2,
+    getFillColor: [255, 0, 255, 1] /* [255, 0, 255, 1], */,
+    getLineColor: (f) =>
+      f.properties.Lead === "Frank"
+        ? [224, 176, 255, 255]
+        : f.properties.Lead === "Don"
+        ? [240, 128, 128, 255]
+        : f.properties.Lead === "Connor"
+        ? [144, 238, 144, 255]
+        : f.properties.Lead === "Mike"
+        ? [65, 105, 225, 255]
+        : f.properties.Lead === "Elaine"
+        ? [255, 195, 0, 255]
+        : [255, 160, 122, 255],
+    getPointRadius: 100,
+    getLineWidth: 1,
+    pointType: "circle+text",
+    gettext: (f) => f.properties.Lead,
+  });
+
+  layers.push(layer2);
+
+  let layer21 = new MVTLayer({
+    id: "topo",
+    data: `https://a.tiles.mapbox.com/v4/qiaoxin136.4tn6grfv/{z}/{x}/{y}.vector.pbf?access_token=pk.eyJ1IjoicWlhb3hpbjEzNiIsImEiOiJja2ppcXZuZ3IzeTQzMnlwOWd6OXRuejRmIn0.Y1EfxKBZfwUhfP-Oc7ozEw`,
+
+    minZoom: 0,
+    maxZoom: 23,
+    getLineColor: [255, 140, 105],
+    getFillColor: [140, 170, 180],
+    lineWidthMinPixels: 1,
+    pickable: true,
+    visible: select,
+  });
+
+  layers.push(layer21);
+
   let layer1 = new GeoJsonLayer({
-    id: "gravity",
-    data: Gravity,
+    id: "channel",
+    data: Channel,
     // Styles
     filled: true,
     pointRadiusMinPixels: 2,
     pointRadiusScale: 5,
     lineWidthScale: 1,
-    lineWidthMinPixels: 2,
+    lineWidthMinPixels: 1,
     dataTransform: (d) => d.features,
     // getPointRadius: (f) => 11 - f.properties.scalerank,
     getFillColor: [170, 255, 0, 255],
     getLineColor: [95, 158, 160, 255] /* (f) =>
       select === 0 ? [207, 159, 255, 255] : [255, 255, 255, 255], */,
-    getLineWidth: (f) => /* f.properties.condheight > 15 ? 5 : 1 */ 100 / zoom,
+    getLineWidth: (f) => (f.properties.DIAMETER > 15 ? 2 : 4),
     lineWidthUnits: "pixels",
     // Interactive props
     pickable: true,
@@ -100,38 +155,112 @@ function MyMapComponent({ center, zoom, tilt }) {
 
   layers.push(layer1);
 
-  let layer2 = new GeoJsonLayer({
-    id: "address",
-    data: Address,
+  // let layer2 = new GeoJsonLayer({
+  //   id: "address",
+  //   data: Address,
+  //   // Styles
+  //   filled: true,
+  //   pointRadiusMinPixels: 2,
+  //   pointRadiusScale: 2,
+  //   // getPointRadius: (f) => 11 - f.properties.scalerank,
+  //   getFillColor: (f) => (select === 0 ? [0, 0, 0, 0] : [224, 176, 255, 255]),
+  //   // getLineColor: (f) =>
+  //   //   select === 0 ? [255, 255, 255, 0] : [0, 0, 0, 255],
+  //   // getLineWidth: (f) => (select === 0 ? 1 : 1),
+  //   // Interactive props
+  //   pickable: true,
+  //   autoHighlight: true,
+  //   stroked: false,
+  //   visible: select,
+
+  //   // onClick: (info) =>
+  //   //   // eslint-disable-next-line
+  //   //   info.object &&
+  //   //   alert(
+  //   //     `MH ID: ${info.object.properties.FACILITYID}\nInvert: ${info.object.properties.NAVD88ELEV}\nRim: ${info.object.properties.RIMNAVD88}  `
+  //   //   ),
+  //   // onClick: (info, events) => {
+  //   //   placeMarker(map, info.object.properties.FACILITYID, events.latLng);
+  // });
+  // layers.push(layer2);
+
+  // let layer2 = new MVTLayer({
+  //   id: "mvtdata",
+  //   data: `https://a.tiles.mapbox.com/v4/qiaoxin136.738omlu5/{z}/{x}/{y}.vector.pbf?access_token=pk.eyJ1IjoicWlhb3hpbjEzNiIsImEiOiJja2ppcXZuZ3IzeTQzMnlwOWd6OXRuejRmIn0.Y1EfxKBZfwUhfP-Oc7ozEw`,
+
+  //   minZoom: 0,
+  //   maxZoom: 23,
+  //   getLineColor: [255, 140, 105],
+  //   getFillColor: [140, 170, 180],
+  //   lineWidthMinPixels: 3,
+  //   pickable: true,
+  // });
+
+  // layers.push(layer2);
+
+  let layer5 = new GeoJsonLayer({
+    id: "conduit",
+    data: Conduit,
     // Styles
     filled: true,
     pointRadiusMinPixels: 2,
-    pointRadiusScale: 2,
+    pointRadiusScale: 5,
+    lineWidthScale: 1.5,
+    lineWidthMinPixels: 2,
     // getPointRadius: (f) => 11 - f.properties.scalerank,
-    getFillColor: (f) => (select === 0 ? [0, 0, 0, 0] : [224, 176, 255, 255]),
-    // getLineColor: (f) =>
-    //   select === 0 ? [255, 255, 255, 0] : [0, 0, 0, 255],
-    // getLineWidth: (f) => (select === 0 ? 1 : 1),
+    getFillColor: [170, 255, 0, 255],
+    getLineColor: /*  [207, 159, 255, 255], */ (f) =>
+      f.properties.DIAMETER > 18 ? [65, 105, 225, 255] : [95, 158, 160, 255],
+    getLineWidth: (f) => (f.properties.DIAMETER > 15 ? 2 : 1),
     // Interactive props
     pickable: true,
     autoHighlight: true,
-    stroked: false,
-    visible: select,
-
     // onClick: (info) =>
     //   // eslint-disable-next-line
     //   info.object &&
     //   alert(
-    //     `MH ID: ${info.object.properties.FACILITYID}\nInvert: ${info.object.properties.NAVD88ELEV}\nRim: ${info.object.properties.RIMNAVD88}  `
+    //     `Diameter (in): ${info.object.properties.DIAMETER} \nMaterial: ${info.object.properties.MATERIAL}\nFacility ID: ${info.object.properties.FACILITYID}`
     //   ),
-    // onClick: (info, events) => {
-    //   placeMarker(map, info.object.properties.FACILITYID, events.latLng);
+    // onHover: (info) =>
+    //   // eslint-disable-next-line
+    //   info.object &&
+    //   alert(`Diameter (in): ${info.object.properties.DIAMETER} `),
   });
-  layers.push(layer2);
+  layers.push(layer5);
+
+  let layer6 = new GeoJsonLayer({
+    id: "culvert",
+    data: Culvert,
+    // Styles
+    filled: true,
+    pointRadiusMinPixels: 2,
+    pointRadiusScale: 5,
+    lineWidthScale: 1.5,
+    lineWidthMinPixels: 2,
+    // getPointRadius: (f) => 11 - f.properties.scalerank,
+    getFillColor: [170, 255, 0, 255],
+    getLineColor: /*  [207, 159, 255, 255], */ (f) =>
+      f.properties.DIAMETER > 18 ? [65, 105, 225, 255] : [255, 105, 180, 255],
+    getLineWidth: (f) => (f.properties.DIAMETER > 15 ? 2 : 1),
+    // Interactive props
+    pickable: true,
+    autoHighlight: true,
+    // onClick: (info) =>
+    //   // eslint-disable-next-line
+    //   info.object &&
+    //   alert(
+    //     `Diameter (in): ${info.object.properties.DIAMETER} \nMaterial: ${info.object.properties.MATERIAL}\nFacility ID: ${info.object.properties.FACILITYID}`
+    //   ),
+    // onHover: (info) =>
+    //   // eslint-disable-next-line
+    //   info.object &&
+    //   alert(`Diameter (in): ${info.object.properties.DIAMETER} `),
+  });
+  layers.push(layer6);
 
   let layer3 = new GeoJsonLayer({
-    id: "mh",
-    data: MH,
+    id: "node",
+    data: Node,
     // Styles
     filled: true,
     getIconAngle: 0,
@@ -161,89 +290,6 @@ function MyMapComponent({ center, zoom, tilt }) {
     pointType: "circle+text",
   });
   layers.push(layer3);
-  let layer4 = new GeoJsonLayer({
-    id: "liftstation",
-    data: LiftStation,
-    // Styles
-    filled: true,
-    pointType: "icon",
-    iconAtlas:
-      "https://mylibraryforuse.s3.amazonaws.com/logo/gis-tl-booster-well-128.png",
-    iconMapping: {
-      marker: {
-        x: 0,
-        y: 0,
-        width: 128,
-        height: 128,
-        anchorY: 64,
-        anchorX: 64,
-        mask: false,
-      },
-    },
-    getIcon: (d) => "marker",
-    getIconSize: 10,
-    getIconColor: [220, 20, 60, 255],
-    getIconAngle: 0,
-    iconSizeUnits: "meters",
-    iconSizeScale: 5,
-    iconSizeMinPixels: 6,
-    pointRadiusMinPixels: 2,
-    pointRadiusScale: 9,
-    // getPointRadius: (f) => 11 - f.properties.scalerank,
-    getFillColor: [214, 37, 152, 255],
-    // Interactive props
-    pickable: true,
-    autoHighlight: true,
-    getText: (d) => d.properties.FACILITYID,
-    getTextColor: [195, 33, 72, 255],
-    getTextBackgroundColor: [127, 255, 212, 255],
-    textBackground: false,
-    textBackgroundPadding: [1, 1],
-    textOutlineColor: [0, 0, 0, 255],
-    textOutlineWidth: 3,
-    textSizeScale: 0.7,
-
-    // sizeScale: 0.2,
-    // getSize: 6,
-    // onClick: (info) =>
-    //   // eslint-disable-next-line
-    //   info.object &&
-    //   alert(
-    //     `Lift Station: ${info.object.properties.FACILITYID}\nBuild Year: ${info.object.properties.BUILDYR}\nType: ${info.object.properties.STATIONTYP}\nWet Well Size: ${info.object.properties.WWSIZE} `
-    //   ),
-  });
-
-  layers.push(layer4);
-
-  let layer5 = new GeoJsonLayer({
-    id: "fm",
-    data: FM,
-    // Styles
-    filled: true,
-    pointRadiusMinPixels: 2,
-    pointRadiusScale: 5,
-    lineWidthScale: 1.5,
-    lineWidthMinPixels: 2,
-    // getPointRadius: (f) => 11 - f.properties.scalerank,
-    getFillColor: [170, 255, 0, 255],
-    getLineColor: /*  [207, 159, 255, 255], */ (f) =>
-      f.properties.DIAMETER > 18 ? [65, 105, 225, 255] : [95, 158, 160, 255],
-    getLineWidth: (f) => (f.properties.DIAMETER > 15 ? 4 : 1),
-    // Interactive props
-    pickable: true,
-    autoHighlight: true,
-    // onClick: (info) =>
-    //   // eslint-disable-next-line
-    //   info.object &&
-    //   alert(
-    //     `Diameter (in): ${info.object.properties.DIAMETER} \nMaterial: ${info.object.properties.MATERIAL}\nFacility ID: ${info.object.properties.FACILITYID}`
-    //   ),
-    // onHover: (info) =>
-    //   // eslint-disable-next-line
-    //   info.object &&
-    //   alert(`Diameter (in): ${info.object.properties.DIAMETER} `),
-  });
-  layers.push(layer5);
 
   const overlay = useMemo(
     () =>
@@ -254,7 +300,7 @@ function MyMapComponent({ center, zoom, tilt }) {
 
   // console.log(map);
 
-  function Search({ moveTo }) {
+  function Search(moveTo) {
     const {
       ready,
       value,
@@ -334,7 +380,7 @@ function MyMapComponent({ center, zoom, tilt }) {
           x: event.pixel.x,
           y: event.pixel.y,
           radius: 4,
-          layerIds: ["gravity", "address", "mh", "fm", "liftstation"],
+          layerIds: ["channel", "conduit", "node", "culvert", "basin", "topo"],
         });
 
         console.log(picked);
@@ -354,80 +400,117 @@ function MyMapComponent({ center, zoom, tilt }) {
 
         console.log(picked ? picked.object.properties : "none");
         if (picked) {
-          if (picked.layer.id === "mh") {
+          if (picked.layer.id === "node") {
             infowindow.setContent(
               "<div>" +
-                '<h3 style="color: blue">Manhole</h3>' +
+                '<h3 style="color: blue">Node</h3>' +
                 "Facility ID: " +
-                picked.object.properties.OASISID +
+                picked.object.properties.FACILITYID +
                 "<br />" +
-                "Invert: " +
-                picked.object.properties.Invert +
+                "Measure Down: " +
+                picked.object.properties.MEASDOWN +
                 "<br />" +
-                "RIM: " +
-                picked.object.properties.RASTERVALU +
+                "Ground: " +
+                picked.object.properties.GROUND_ELE +
                 "</div>"
             );
-          } else if (picked.layer.id === "address") {
+          } else if (picked.layer.id === "channel") {
             infowindow.setContent(
               "<div>" +
-                '<h3 style="color: blue">Address</h3>' +
-                // "Facility ID: " +
-                // picked.object.properties.OASISID +
-                // "<br />" +
-                "Address: " +
-                picked.object.properties.OWNERADDRE +
-                "<br />" +
-                "Property ID: " +
-                picked.object.properties.PROP_ID +
-                "<br />" +
-                "MH ID: " +
-                picked.object.properties.MH_ID +
-                "</div>"
-            );
-          } else if (picked.layer.id === "fm") {
-            infowindow.setContent(
-              "<div>" +
-                '<h3 style="color: blue">Force Main</h3>' +
+                '<h3 style="color: blue">Channel</h3>' +
                 "Diameter: " +
                 picked.object.properties.DIAMETER +
                 "<br />" +
                 "Facility ID: " +
-                picked.object.properties.OASISPipeI +
+                picked.object.properties.FACILITYID +
                 "<br />" +
-                "Material: " +
-                picked.object.properties.MATERIAL +
+                "Channel Type: " +
+                picked.object.properties.CHAN_TYP +
                 "<br />" +
-                "Install Year: " +
-                picked.object.properties.YrBuilt +
+                "Upstream Invert: " +
+                picked.object.properties.INV_ELUS +
+                "<br />" +
+                "Downstream Invert: " +
+                picked.object.properties.INV_ELDS +
                 "</div>"
             );
-          } else if (picked.layer.id === "gravity") {
+          } else if (picked.layer.id === "topo") {
             infowindow.setContent(
               "<div>" +
-                '<h3 style="color: blue">Gravity Sewer</h3>' +
+                '<h3 style="color: blue">Topo</h3>' +
+                "Contour: " +
+                picked.object.properties.Contour +
+                "</div>"
+            );
+          } else if (picked.layer.id === "basin") {
+            infowindow.setContent(
+              "<div>" +
+                '<h3 style="color: blue">Subbasin</h3>' +
+                "Subbasin ID: " +
+                picked.object.properties.SubbasinID +
+                "<br />" +
+                "Lead: " +
+                picked.object.properties.Lead +
+                "</div>"
+            );
+          } else if (picked.layer.id === "conduit") {
+            infowindow.setContent(
+              "<div>" +
+                '<h3 style="color: blue">Conduit</h3>' +
                 "Diameter: " +
                 picked.object.properties.DIAMETER +
                 "<br />" +
                 "Facility ID: " +
-                picked.object.properties.FacilityID +
+                picked.object.properties.FACILITYID +
                 "<br />" +
-                "Material: " +
-                picked.object.properties.MATERIAL +
+                "Rise: " +
+                picked.object.properties.RISE +
+                "<br />" +
+                "Span: " +
+                picked.object.properties.SPAN +
+                "<br />" +
+                "UpStream Invert: " +
+                picked.object.properties.INV_ELUS +
+                "<br />" +
+                "Downstream Invert: " +
+                picked.object.properties.INV_ELDS +
+                "</div>"
+            );
+          } else if (picked.layer.id === "culvert") {
+            infowindow.setContent(
+              "<div>" +
+                '<h3 style="color: blue">Culvert</h3>' +
+                "Diameter: " +
+                picked.object.properties.DIAMETER +
+                "<br />" +
+                "Facility ID: " +
+                picked.object.properties.FACILITYID +
+                "<br />" +
+                "Rise: " +
+                picked.object.properties.RISE +
+                "<br />" +
+                "Span: " +
+                picked.object.properties.SPAN +
+                "<br />" +
+                "UpStream Invert: " +
+                picked.object.properties.INV_ELUS +
+                "<br />" +
+                "Downstream Invert: " +
+                picked.object.properties.INV_ELDS +
                 "</div>"
             );
           } else {
-            infowindow.setContent(
-              "<div>" +
-                '<h3 style="color: blue">Lift Station</h3>' +
-                "Facility ID: " +
-                picked.object.properties.PSID +
-                "<br />" +
-                "Name: " +
-                picked.object.properties.PumpStatio +
-                "<br />" +
-                "</div>"
-            );
+            // infowindow.setContent(
+            //   "<div>" +
+            //     '<h3 style="color: blue">Lift Station</h3>' +
+            //     "Facility ID: " +
+            //     picked.object.properties.PSID +
+            //     "<br />" +
+            //     "Name: " +
+            //     picked.object.properties.PumpStatio +
+            //     "<br />" +
+            //     "</div>"
+            // );
           }
 
           infowindow.open({
@@ -455,7 +538,7 @@ function MyMapComponent({ center, zoom, tilt }) {
 
   return (
     <>
-      <Search /* moveTo={moveTo} */ />
+      <Search moveTo={moveTo} />
       <div ref={ref} id="map" style={{ height: "100vh", width: "98wh" }}></div>
 
       <div>
@@ -480,10 +563,47 @@ function MyMapComponent({ center, zoom, tilt }) {
 }
 
 function App() {
-  const center = { lat: 38.0135, lng: -122.5311 };
-  const zoom = 14;
+  const center = { lat: 35.0827, lng: -78.8784 };
+  const zoom = 15;
   return (
-    <>
+    <AmplifyAuthenticator usernameAlias="email">
+      <AmplifySignUp
+        slot="sign-up"
+        usernameAlias="email"
+        formFields={[
+          {
+            type: "email",
+            label: "Custom Email Label",
+            placeholder: "Custom email placeholder",
+            inputProps: { required: true, autocomplete: "username" },
+          },
+          {
+            type: "password",
+            label: "Custom Password Label",
+            placeholder: "Custom password placeholder",
+            inputProps: { required: true, autocomplete: "new-password" },
+          },
+        ]}
+      />
+      <AmplifySignIn
+        headerText="Cross Creek Flooding Study"
+        slot="sign-in"
+        usernameAlias="email"
+        formFields={[
+          {
+            type: "email",
+            label: "Your Email",
+            placeholder: "email",
+            inputProps: { required: true, autocomplete: "username" },
+          },
+          {
+            type: "password",
+            label: "Your Password",
+            placeholder: "password",
+            inputProps: { required: true, autocomplete: "new-password" },
+          },
+        ]}
+      />
       <Wrapper
         apiKey={GOOGLE_MAPS_API_KEY}
         libraries={["places"]}
@@ -491,7 +611,10 @@ function App() {
       >
         <MyMapComponent center={center} zoom={zoom} />
       </Wrapper>
-    </>
+      <div>
+        <AmplifySignOut style={{ position: "absolute", left: 0, bottom: 0 }} />
+      </div>
+    </AmplifyAuthenticator>
   );
 }
 

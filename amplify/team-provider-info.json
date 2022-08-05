@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-faycrosscreek-dev-205638-authRole",
+      "UnauthRoleArn": "arn:aws:iam::635624937697:role/amplify-faycrosscreek-dev-205638-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::635624937697:role/amplify-faycrosscreek-dev-205638-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-faycrosscreek-dev-205638-deployment",
+      "UnauthRoleName": "amplify-faycrosscreek-dev-205638-unauthRole",
+      "StackName": "amplify-faycrosscreek-dev-205638",
+      "StackId": "arn:aws:cloudformation:us-east-1:635624937697:stack/amplify-faycrosscreek-dev-205638/769ed900-1459-11ed-85af-123b790b6551",
+      "AmplifyAppId": "d3vwbxobeef8j"
+    },
+    "categories": {
+      "auth": {
+        "faycrosscreek9b2e9e50": {}
+      }
+    }
+  }
+}
